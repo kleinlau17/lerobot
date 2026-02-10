@@ -37,6 +37,16 @@ lerobot-replay \
   --dataset.episode=0
 ```
 
+Replay the same episode multiple times:
+```shell
+lerobot-replay \
+    --robot.type=so100_follower \
+    --robot.port=/dev/tty.usbmodem58760431541 \
+    --dataset.repo_id=aliberts/record-test \
+    --dataset.episode=0 \
+    --dataset.num_repeats=5
+```
+
 """
 
 import logging
@@ -84,6 +94,10 @@ class DatasetReplayConfig:
     root: str | Path | None = None
     # Limit the frames per second. By default, uses the policy fps.
     fps: int = 30
+    # Number of times to replay this episode. Default is 1.
+    num_repeats: int = 1
+    # Seconds to wait after the last frame before disconnecting, so the robot can finish the last action. Default is 2.0. Set to 0 to keep previous behavior.
+    post_replay_delay: float = 2.0
 
 
 @dataclass
@@ -111,23 +125,48 @@ def replay(cfg: ReplayConfig):
     robot.connect()
 
     try:
-        log_say("Replaying episode", cfg.play_sounds, blocking=True)
-        for idx in range(len(episode_frames)):
-            start_episode_t = time.perf_counter()
+        num_repeats = cfg.dataset.num_repeats
+        last_processed_action = None
+        for repeat_idx in range(num_repeats):
+            if repeat_idx == 0:
+                log_say("Replaying episode", cfg.play_sounds, blocking=True)
+            elif num_repeats > 1:
+                logging.info("Repeat %d/%d", repeat_idx + 1, num_repeats)
 
-            action_array = actions[idx][ACTION]
-            action = {}
-            for i, name in enumerate(dataset.features[ACTION]["names"]):
-                action[name] = action_array[i]
+            for idx in range(len(episode_frames)):
+                start_episode_t = time.perf_counter()
 
-            robot_obs = robot.get_observation()
+                action_array = actions[idx][ACTION]
+                action = {}
+                for i, name in enumerate(dataset.features[ACTION]["names"]):
+                    action[name] = action_array[i]
 
-            processed_action = robot_action_processor((action, robot_obs))
+                robot_obs = robot.get_observation()
 
-            _ = robot.send_action(processed_action)
+                processed_action = robot_action_processor((action, robot_obs))
 
-            dt_s = time.perf_counter() - start_episode_t
-            precise_sleep(max(1 / dataset.fps - dt_s, 0.0))
+                robot.send_action(processed_action)
+                last_processed_action = processed_action
+
+                dt_s = time.perf_counter() - start_episode_t
+                precise_sleep(max(1 / dataset.fps - dt_s, 0.0))
+
+        if cfg.dataset.post_replay_delay > 0:
+            if last_processed_action is not None:
+                logging.info(
+                    "Holding last action for %.1fs before disconnect.",
+                    cfg.dataset.post_replay_delay,
+                )
+                num_hold_steps = int(cfg.dataset.post_replay_delay * dataset.fps)
+                for _ in range(num_hold_steps):
+                    robot.send_action(last_processed_action)
+                    precise_sleep(1.0 / dataset.fps)
+            else:
+                logging.info(
+                    "Waiting %.1fs before disconnect.",
+                    cfg.dataset.post_replay_delay,
+                )
+                time.sleep(cfg.dataset.post_replay_delay)
     finally:
         robot.disconnect()
 

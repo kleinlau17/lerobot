@@ -95,10 +95,22 @@ class IOSPhone(BasePhone, Teleoperator):
         self.calibrate()
 
     def calibrate(self) -> None:
+        # Check connection status
+        if self._group is None:
+            print("ERROR: Not connected to HEBI group!")
+            return
+        print(f"DEBUG: Connected to HEBI group with {self._group.size} module(s)")
         print(
             "Hold the phone so that: top edge points forward in same direction as the robot (robot +x) and screen points up (robot +z)"
         )
-        print("Press and hold B1 in the HEBI Mobile I/O app to capture this pose...\n")
+        button_num = self.config.calibration_button
+        print(f"Press and hold B{button_num} in the HEBI Mobile I/O app to capture this pose...")
+        print("\n[INFO] Troubleshooting tips:")
+        print(f"  - Make sure B{button_num} button is configured in HEBI Mobile I/O app")
+        print(f"  - Try pressing and HOLDING B{button_num} (not just tapping)")
+        print("  - Check if any other buttons (B2-B8) respond when pressed")
+        print("  - The debug output will show all button value changes")
+        print(f"  - If B{button_num} doesn't work, you can change calibration_button in PhoneConfig\n")
         position, rotation = self._wait_for_capture_trigger()
         self._calib_pos = position.copy()
         self._calib_rot_inv = rotation.inv()
@@ -110,25 +122,196 @@ class IOSPhone(BasePhone, Teleoperator):
         Blocks execution until the calibration trigger is detected from the iOS device.
 
         This method enters a loop, continuously reading the phone's state. It waits for the user to press
-        and hold the 'B1' button in the HEBI Mobile I/O app. Once B1 is pressed, the loop breaks and
-        returns the phone's pose at that exact moment.
+        and hold the configured button (default B1, configurable via calibration_button) in the HEBI Mobile I/O app.
+        Once the button is pressed, the loop breaks and returns the phone's pose at that exact moment.
 
         Returns:
             A tuple containing the position (np.ndarray) and rotation (Rotation) of the phone at the
             moment the trigger was activated.
         """
+        iteration = 0
+        last_status_time = time.time()
+        STATUS_INTERVAL = 1.0  # Print status every 1 second
+        button_num = self.config.calibration_button
+        last_button_value = None  # Track button value changes
+        last_all_button_values = {}  # Track all button values for change detection
+        
         while True:
+            iteration += 1
             has_pose, position, rotation, fb_pose = self._read_current_pose()
+            
+            # Print detailed status periodically (every ~1 second)
+            current_time = time.time()
+            if current_time - last_status_time >= STATUS_INTERVAL:
+                print(f"\n[DEBUG] Iteration {iteration} (waiting for B{button_num} press):")
+                print(f"  - has_pose: {has_pose}")
+                
+                if fb_pose is not None:
+                    # Check ARKit data
+                    ar_pos = getattr(fb_pose, "ar_position", None)
+                    ar_quat = getattr(fb_pose, "ar_orientation", None)
+                    print(f"  - ar_position available: {ar_pos is not None}")
+                    print(f"  - ar_orientation available: {ar_quat is not None}")
+                    if ar_pos is not None:
+                        print(f"  - ar_position: {ar_pos}")
+                    
+                    # Check IO object
+                    io = getattr(fb_pose, "io", None)
+                    print(f"  - io object available: {io is not None}")
+                    
+                    if io is not None:
+                        button_b = getattr(io, "b", None)
+                        button_a = getattr(io, "a", None)
+                        print(f"  - io.b (button bank) available: {button_b is not None}")
+                        print(f"  - io.a (analog bank) available: {button_a is not None}")
+                        
+                        # Try to read all button channels
+                        if button_b is not None:
+                            button_values = {}
+                            for ch in range(1, 9):
+                                try:
+                                    if hasattr(button_b, "has_int") and button_b.has_int(ch):
+                                        val = button_b.get_int(ch)
+                                        button_values[f"b{ch}"] = val
+                                    elif hasattr(button_b, "has_bool") and button_b.has_bool(ch):
+                                        val = button_b.get_bool(ch)
+                                        button_values[f"b{ch}"] = int(val)
+                                    else:
+                                        # Try direct access even if has_int/has_bool returns False
+                                        try:
+                                            val = button_b.get_int(ch)
+                                            button_values[f"b{ch}"] = val
+                                        except Exception:
+                                            try:
+                                                val = button_b.get_bool(ch)
+                                                button_values[f"b{ch}"] = int(val)
+                                            except Exception:
+                                                pass  # Channel not available
+                                except Exception as e:
+                                    button_values[f"b{ch}"] = f"ERROR: {e}"
+                            print(f"  - Button values: {button_values}")
+                            # Always try to read the calibration button specifically for detailed info
+                            try:
+                                btn_val = None
+                                if hasattr(button_b, "has_int") and button_b.has_int(button_num):
+                                    btn_val = button_b.get_int(button_num)
+                                elif hasattr(button_b, "has_bool") and button_b.has_bool(button_num):
+                                    btn_val = button_b.get_bool(button_num)
+                                else:
+                                    try:
+                                        btn_val = button_b.get_int(button_num)
+                                    except Exception:
+                                        try:
+                                            btn_val = button_b.get_bool(button_num)
+                                        except Exception:
+                                            btn_val = "NOT_AVAILABLE"
+                                print(f"  - B{button_num} button value: {btn_val} (type: {type(btn_val)})")
+                            except Exception as e:
+                                print(f"  - B{button_num} button read error: {e}")
+                        
+                        # Try to read analog channels
+                        if button_a is not None:
+                            analog_values = {}
+                            for ch in range(1, 9):
+                                try:
+                                    if hasattr(button_a, "has_float") and button_a.has_float(ch):
+                                        val = button_a.get_float(ch)
+                                        analog_values[f"a{ch}"] = val
+                                except Exception as e:
+                                    analog_values[f"a{ch}"] = f"ERROR: {e}"
+                            if analog_values:
+                                print(f"  - Analog values: {analog_values}")
+                    else:
+                        print(f"  - fb_pose attributes: {dir(fb_pose)}")
+                else:
+                    print(f"  - fb_pose is None")
+                
+                last_status_time = current_time
+            
             if not has_pose:
                 time.sleep(0.01)
                 continue
 
             io = getattr(fb_pose, "io", None)
             button_b = getattr(io, "b", None) if io is not None else None
-            button_b1_pressed = False
+            button_pressed = False
+            current_button_value = None
+            current_all_button_values = {}
+            
             if button_b is not None:
-                button_b1_pressed = bool(button_b.get_int(1))
-            if button_b1_pressed:
+                # Read all button values to detect any changes
+                for ch in range(1, 9):
+                    try:
+                        if hasattr(button_b, "has_int") and button_b.has_int(ch):
+                            current_all_button_values[f"b{ch}"] = button_b.get_int(ch)
+                        elif hasattr(button_b, "has_bool") and button_b.has_bool(ch):
+                            current_all_button_values[f"b{ch}"] = int(button_b.get_bool(ch))
+                        else:
+                            try:
+                                current_all_button_values[f"b{ch}"] = button_b.get_int(ch)
+                            except Exception:
+                                try:
+                                    current_all_button_values[f"b{ch}"] = int(button_b.get_bool(ch))
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+                
+                # Check for any button value changes
+                button_changes = []
+                for btn_name, btn_val in current_all_button_values.items():
+                    last_val = last_all_button_values.get(btn_name)
+                    if last_val is not None and btn_val != last_val:
+                        button_changes.append(f"{btn_name}: {last_val} -> {btn_val}")
+                
+                if button_changes:
+                    print(f"\n[DEBUG] Button value changes detected at iteration {iteration}:")
+                    for change in button_changes:
+                        print(f"  - {change}")
+                
+                # Update last values
+                last_all_button_values = current_all_button_values.copy()
+                
+                # Try multiple methods to read the calibration button
+                try:
+                    # Method 1: Check if has_int exists and channel is available
+                    if hasattr(button_b, "has_int") and button_b.has_int(button_num):
+                        current_button_value = button_b.get_int(button_num)
+                        button_pressed = bool(current_button_value)
+                    # Method 2: Try has_bool
+                    elif hasattr(button_b, "has_bool") and button_b.has_bool(button_num):
+                        current_button_value = button_b.get_bool(button_num)
+                        button_pressed = bool(current_button_value)
+                    # Method 3: Try direct access (might work even if has_int returns False)
+                    else:
+                        try:
+                            current_button_value = button_b.get_int(button_num)
+                            button_pressed = bool(current_button_value)
+                        except Exception:
+                            try:
+                                current_button_value = button_b.get_bool(button_num)
+                                button_pressed = bool(current_button_value)
+                            except Exception:
+                                pass
+                except Exception as e:
+                    # Last resort: try direct access without checking
+                    try:
+                        current_button_value = button_b.get_int(button_num)
+                        button_pressed = bool(current_button_value)
+                    except Exception:
+                        try:
+                            current_button_value = button_b.get_bool(button_num)
+                            button_pressed = bool(current_button_value)
+                        except Exception:
+                            pass
+                
+                # Debug: print button status when value changes
+                if current_button_value != last_button_value:
+                    print(f"\n[DEBUG] B{button_num} button value changed: {last_button_value} -> {current_button_value} (pressed={button_pressed}) at iteration {iteration}")
+                    last_button_value = current_button_value
+            
+            if button_pressed:
+                print(f"\n[SUCCESS] B{button_num} button pressed detected at iteration {iteration}!")
                 return position, rotation
 
             time.sleep(0.01)
@@ -150,7 +333,15 @@ class IOSPhone(BasePhone, Teleoperator):
             - The raw HEBI feedback object for accessing other data like button presses.
         """
         fbk = self._group.get_next_feedback()
-        pose = fbk[0]
+        if fbk is None:
+            return False, None, None, None
+        # Check if GroupFeedback has any modules
+        try:
+            if hasattr(fbk, "size") and fbk.size == 0:
+                return False, None, None, None
+            pose = fbk[0]
+        except (IndexError, TypeError) as e:
+            return False, None, None, None
         ar_pos = getattr(pose, "ar_position", None)
         ar_quat = getattr(pose, "ar_orientation", None)
         if ar_pos is None or ar_quat is None:
@@ -168,7 +359,7 @@ class IOSPhone(BasePhone, Teleoperator):
         if not has_pose or not self.is_calibrated:
             return {}
 
-        # Collect raw inputs (B1 / analogs on iOS, move/scale on Android)
+        # Collect raw inputs (digital buttons / analogs on iOS, move/scale on Android)
         raw_inputs: dict[str, float | int | bool] = {}
         io = getattr(fb_pose, "io", None)
         if io is not None:
@@ -184,7 +375,9 @@ class IOSPhone(BasePhone, Teleoperator):
                     elif hasattr(bank_b, "has_bool") and bank_b.has_bool(ch):
                         raw_inputs[f"b{ch}"] = int(bank_b.get_bool(ch))
 
-        enable = bool(raw_inputs.get("b1", 0))
+        # Use the configured calibration/enable button (default: B1) as the teleoperation enable gate
+        button_num = getattr(self.config, "calibration_button", 1)
+        enable = bool(raw_inputs.get(f"b{button_num}", 0))
 
         # Rising edge then re-capture calibration immediately from current raw pose
         if enable and not self._enabled:

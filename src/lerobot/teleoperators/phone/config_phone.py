@@ -34,3 +34,4 @@ class PhoneConfig(TeleoperatorConfig):
     camera_offset = np.array(
         [0.0, -0.02, 0.04]
     )  # iPhone 14 Pro camera is 2cm off center and 4cm above center
+    calibration_button: int = 3  # Button number (1-8) to use for calibration trigger. Default is B1. If B1 doesn't work, try 3, 4, 6, or 8.
