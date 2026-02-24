@@ -55,13 +55,19 @@ def get_keyframes(emotion: str, action: str | None = None) -> EmotionActionKeyfr
 def interpolate_keyframes(
     keyframes: list[tuple[float, dict[str, float]]],
     num_frames: int,
+    duration_s: float | None = None,
 ) -> list[dict[str, float]]:
-    """Linear interpolation between keyframes. Returns list of joint dicts."""
-    t_ratios = np.array([k[0] for k in keyframes])
+    """Linear interpolation between keyframes (keyframe times in seconds).
+    Returns list of joint dicts. duration_s defaults to max keyframe time."""
+    if not keyframes:
+        return []
+    t_times = np.array([k[0] for k in keyframes])
+    T_max = float(np.max(t_times)) if duration_s is None else duration_s
+    T_max = max(T_max, 1e-6)
     traj = []
     for i in range(num_frames):
-        t = i / max(num_frames - 1, 1)
-        idx = int(np.searchsorted(t_ratios, t, side="right") - 1)
+        t = (i / max(num_frames - 1, 1)) * T_max
+        idx = int(np.searchsorted(t_times, t, side="right") - 1)
         idx = max(0, min(idx, len(keyframes) - 2))
         t0, j0 = keyframes[idx]
         t1, j1 = keyframes[idx + 1]
@@ -188,14 +194,16 @@ class LivingBehaviorGenerator:
         self.micro_fidget_amplitude = micro_fidget_amplitude
         self.micro_fidget_freq_hz = micro_fidget_freq_hz
 
-        # Precompute emotion x action trajectories (at 30 fps, 4 s = 120 frames)
+        # Precompute emotion x action trajectories: duration = max keyframe time (seconds)
+        fps_precompute = 30.0
         self._emotion_action_trajectories: dict[str, dict[str, list[dict[str, float]]]] = {}
         for emo in ("happy", "sad", "curious", "wave"):
             self._emotion_action_trajectories[emo] = {}
             for action_name, kf in EMOTION_ACTIONS[emo].items():
-                num_frames = 120  # 4 s at 30 fps
+                duration_s = max(t for t, _ in kf) if kf else 1.0
+                num_frames = max(1, int(round(duration_s * fps_precompute)))
                 self._emotion_action_trajectories[emo][action_name] = interpolate_keyframes(
-                    kf, num_frames
+                    kf, num_frames, duration_s=duration_s
                 )
 
         # Base pose (neutral idle)
@@ -237,10 +245,21 @@ class LivingBehaviorGenerator:
         """Idle: base + breathing + micro-fidget."""
         joints = dict(self._base_pose)
 
-        # Breathing: shoulder_lift, elbow_flex, wrist_flex
-        breath = self.breathing_amplitude * math.sin(2 * math.pi * self.breathing_freq_hz * t)
-        for j in ("shoulder_lift", "elbow_flex", "wrist_flex"):
-            joints[j] = joints[j] + breath
+        # Breathing: smooth cosine mapping per joint (shoulder_lift, elbow_flex, wrist_flex)
+        if self.breathing_freq_hz > 0 and self.breathing_amplitude > 0:
+            omega = 2 * math.pi * self.breathing_freq_hz
+            # Per-joint scaling and phase offsets give a traveling \"breath\" wave
+            breathing_params = {
+                "shoulder_lift": (1.0, 0.0),
+                "elbow_flex": (0.75, math.pi / 6),
+                "wrist_flex": (0.5, math.pi / 3),
+            }
+            for j, (scale, phase) in breathing_params.items():
+                if j not in joints:
+                    continue
+                # Cosine mapping: (1 - cos) / 2 gives zero velocity at 2πk
+                offset = self.breathing_amplitude * scale * (1.0 - math.cos(omega * t + phase)) / 2.0
+                joints[j] = joints[j] + offset
 
         # Micro-fidget: all joints, small sine with per-joint phase
         for j in JOINT_NAMES:
