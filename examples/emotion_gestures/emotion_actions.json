@@ -15,25 +15,36 @@
     "neutral": {
       "idle": [
         {
-          "t": 0.0,
+          "t": 0,
           "joints": {
-            "shoulder_pan": 0.0,
-            "shoulder_lift": 0.0,
-            "elbow_flex": 0.0,
-            "wrist_flex": 0.0,
-            "wrist_roll": 0.0,
-            "gripper": 50.0
+            "gripper": 3.8999999999999995,
+            "wrist_roll": 0.22915561607816304,
+            "wrist_flex": 25.649956848454543,
+            "elbow_flex": 24.20746684427722,
+            "shoulder_lift": -51.00002185735966,
+            "shoulder_pan": 0
           }
         },
         {
-          "t": 1.0,
+          "t": 1.5,
           "joints": {
-            "shoulder_pan": 0.0,
-            "shoulder_lift": 0.0,
-            "elbow_flex": 0.0,
-            "wrist_flex": 0.0,
-            "wrist_roll": 0.0,
-            "gripper": 50.0
+            "gripper": 12.7,
+            "wrist_roll": 0.22915561607816304,
+            "wrist_flex": 23.369960684147475,
+            "elbow_flex": 35.05241199051345,
+            "shoulder_lift": -62.000026571692146,
+            "shoulder_pan": 5.059994261775338
+          }
+        },
+        {
+          "t": 3,
+          "joints": {
+            "shoulder_pan": 0,
+            "shoulder_lift": -51.00002185735966,
+            "elbow_flex": 24.20746684427722,
+            "wrist_flex": 25.649956848454543,
+            "wrist_roll": 0.22915561607816304,
+            "gripper": 3.8999999999999995
           }
         }
       ]
@@ -41,7 +52,7 @@
     "happy": {
       "bounce": [
         {
-          "t": 0.0,
+          "t": 0,
           "joints": {
             "shoulder_pan": 0,
             "shoulder_lift": 15,
@@ -85,7 +96,7 @@
           }
         },
         {
-          "t": 1.0,
+          "t": 1,
           "joints": {
             "shoulder_pan": 0,
             "shoulder_lift": 15,
@@ -100,7 +111,7 @@
     "sad": {
       "droop": [
         {
-          "t": 0.0,
+          "t": 0,
           "joints": {
             "shoulder_pan": 0,
             "shoulder_lift": 0,
@@ -122,7 +133,7 @@
           }
         },
         {
-          "t": 1.0,
+          "t": 1,
           "joints": {
             "shoulder_pan": 0,
             "shoulder_lift": -25,
@@ -137,7 +148,7 @@
     "curious": {
       "lean": [
         {
-          "t": 0.0,
+          "t": 0,
           "joints": {
             "shoulder_pan": 0,
             "shoulder_lift": 0,
@@ -159,7 +170,7 @@
           }
         },
         {
-          "t": 1.0,
+          "t": 1,
           "joints": {
             "shoulder_pan": 10,
             "shoulder_lift": 25,
@@ -174,7 +185,7 @@
     "wave": {
       "wave": [
         {
-          "t": 0.0,
+          "t": 0,
           "joints": {
             "shoulder_pan": 0,
             "shoulder_lift": 15,
@@ -218,7 +229,7 @@
           }
         },
         {
-          "t": 1.0,
+          "t": 1,
           "joints": {
             "shoulder_pan": 0,
             "shoulder_lift": 15,

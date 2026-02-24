@@ -39,46 +39,46 @@ JOINT_NAMES = [
 
 # Pre-defined actions per emotion (angles in degrees, gripper 0-100).
 # Structure: emotion -> action_name -> list of (t_ratio in [0,1], joints_dict).
-# Each action is the minimal unit: one keyframe sequence playable as a trajectory.
 EmotionActionKeyframes = list[tuple[float, dict[str, float]]]
 
 EMOTION_ACTIONS: dict[str, dict[str, EmotionActionKeyframes]] = {
     "neutral": {
         "idle": [
-            (0.0, {j: 0.0 for j in JOINT_NAMES[:-1]} | {"gripper": 50.0}),
-            (1.0, {j: 0.0 for j in JOINT_NAMES[:-1]} | {"gripper": 50.0}),
+            (0, {"elbow_flex": 24.20746684427722, "gripper": 3.8999999999999995, "shoulder_lift": -51.00002185735966, "shoulder_pan": 0, "wrist_flex": 25.649956848454543, "wrist_roll": 0.22915561607816304}),
+            (1.5, {"elbow_flex": 35.05241199051345, "gripper": 12.7, "shoulder_lift": -62.000026571692146, "shoulder_pan": 5.059994261775338, "wrist_flex": 23.369960684147475, "wrist_roll": 0.22915561607816304}),
+            (3, {"elbow_flex": 24.20746684427722, "gripper": 3.8999999999999995, "shoulder_lift": -51.00002185735966, "shoulder_pan": 0, "wrist_flex": 25.649956848454543, "wrist_roll": 0.22915561607816304}),
         ],
     },
     "happy": {
         "bounce": [
-            (0.0, {"shoulder_pan": 0, "shoulder_lift": 15, "elbow_flex": -30, "wrist_flex": 10, "wrist_roll": 0, "gripper": 60}),
-            (0.25, {"shoulder_pan": 5, "shoulder_lift": 22, "elbow_flex": -35, "wrist_flex": 12, "wrist_roll": 2, "gripper": 70}),
-            (0.5, {"shoulder_pan": -5, "shoulder_lift": 18, "elbow_flex": -32, "wrist_flex": 8, "wrist_roll": -2, "gripper": 65}),
-            (0.75, {"shoulder_pan": 5, "shoulder_lift": 22, "elbow_flex": -35, "wrist_flex": 12, "wrist_roll": 2, "gripper": 70}),
-            (1.0, {"shoulder_pan": 0, "shoulder_lift": 15, "elbow_flex": -30, "wrist_flex": 10, "wrist_roll": 0, "gripper": 60}),
+            (0, {"elbow_flex": -30, "gripper": 60, "shoulder_lift": 15, "shoulder_pan": 0, "wrist_flex": 10, "wrist_roll": 0}),
+            (0.25, {"elbow_flex": -35, "gripper": 70, "shoulder_lift": 22, "shoulder_pan": 5, "wrist_flex": 12, "wrist_roll": 2}),
+            (0.5, {"elbow_flex": -32, "gripper": 65, "shoulder_lift": 18, "shoulder_pan": -5, "wrist_flex": 8, "wrist_roll": -2}),
+            (0.75, {"elbow_flex": -35, "gripper": 70, "shoulder_lift": 22, "shoulder_pan": 5, "wrist_flex": 12, "wrist_roll": 2}),
+            (1, {"elbow_flex": -30, "gripper": 60, "shoulder_lift": 15, "shoulder_pan": 0, "wrist_flex": 10, "wrist_roll": 0}),
         ],
     },
     "sad": {
         "droop": [
-            (0.0, {"shoulder_pan": 0, "shoulder_lift": 0, "elbow_flex": 0, "wrist_flex": 0, "wrist_roll": 0, "gripper": 40}),
-            (0.5, {"shoulder_pan": 0, "shoulder_lift": -20, "elbow_flex": 20, "wrist_flex": -15, "wrist_roll": 0, "gripper": 30}),
-            (1.0, {"shoulder_pan": 0, "shoulder_lift": -25, "elbow_flex": 25, "wrist_flex": -20, "wrist_roll": 0, "gripper": 25}),
+            (0, {"elbow_flex": 0, "gripper": 40, "shoulder_lift": 0, "shoulder_pan": 0, "wrist_flex": 0, "wrist_roll": 0}),
+            (0.5, {"elbow_flex": 20, "gripper": 30, "shoulder_lift": -20, "shoulder_pan": 0, "wrist_flex": -15, "wrist_roll": 0}),
+            (1, {"elbow_flex": 25, "gripper": 25, "shoulder_lift": -25, "shoulder_pan": 0, "wrist_flex": -20, "wrist_roll": 0}),
         ],
     },
     "curious": {
         "lean": [
-            (0.0, {"shoulder_pan": 0, "shoulder_lift": 0, "elbow_flex": 0, "wrist_flex": 0, "wrist_roll": 0, "gripper": 50}),
-            (0.5, {"shoulder_pan": 10, "shoulder_lift": 25, "elbow_flex": -40, "wrist_flex": 15, "wrist_roll": 5, "gripper": 55}),
-            (1.0, {"shoulder_pan": 10, "shoulder_lift": 25, "elbow_flex": -40, "wrist_flex": 15, "wrist_roll": 5, "gripper": 55}),
+            (0, {"elbow_flex": 0, "gripper": 50, "shoulder_lift": 0, "shoulder_pan": 0, "wrist_flex": 0, "wrist_roll": 0}),
+            (0.5, {"elbow_flex": -40, "gripper": 55, "shoulder_lift": 25, "shoulder_pan": 10, "wrist_flex": 15, "wrist_roll": 5}),
+            (1, {"elbow_flex": -40, "gripper": 55, "shoulder_lift": 25, "shoulder_pan": 10, "wrist_flex": 15, "wrist_roll": 5}),
         ],
     },
     "wave": {
         "wave": [
-            (0.0, {"shoulder_pan": 0, "shoulder_lift": 15, "elbow_flex": -30, "wrist_flex": 0, "wrist_roll": 0, "gripper": 50}),
-            (0.25, {"shoulder_pan": 25, "shoulder_lift": 20, "elbow_flex": -35, "wrist_flex": 5, "wrist_roll": 0, "gripper": 50}),
-            (0.5, {"shoulder_pan": -25, "shoulder_lift": 20, "elbow_flex": -35, "wrist_flex": 5, "wrist_roll": 0, "gripper": 50}),
-            (0.75, {"shoulder_pan": 25, "shoulder_lift": 20, "elbow_flex": -35, "wrist_flex": 5, "wrist_roll": 0, "gripper": 50}),
-            (1.0, {"shoulder_pan": 0, "shoulder_lift": 15, "elbow_flex": -30, "wrist_flex": 0, "wrist_roll": 0, "gripper": 50}),
+            (0, {"elbow_flex": -30, "gripper": 50, "shoulder_lift": 15, "shoulder_pan": 0, "wrist_flex": 0, "wrist_roll": 0}),
+            (0.25, {"elbow_flex": -35, "gripper": 50, "shoulder_lift": 20, "shoulder_pan": 25, "wrist_flex": 5, "wrist_roll": 0}),
+            (0.5, {"elbow_flex": -35, "gripper": 50, "shoulder_lift": 20, "shoulder_pan": -25, "wrist_flex": 5, "wrist_roll": 0}),
+            (0.75, {"elbow_flex": -35, "gripper": 50, "shoulder_lift": 20, "shoulder_pan": 25, "wrist_flex": 5, "wrist_roll": 0}),
+            (1, {"elbow_flex": -30, "gripper": 50, "shoulder_lift": 15, "shoulder_pan": 0, "wrist_flex": 0, "wrist_roll": 0}),
         ],
     },
 }
