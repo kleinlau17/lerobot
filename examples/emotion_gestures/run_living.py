@@ -30,8 +30,12 @@ Usage:
 """
 
 import argparse
+import json
 import logging
+import queue
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from lerobot.processor import make_default_robot_action_processor
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
@@ -46,6 +50,85 @@ from living_behavior import (
 )
 
 FPS = 30
+
+# Queue for external emotion triggers (latest wins)
+_emotion_trigger_queue: "queue.Queue[str]" = queue.Queue(maxsize=1)
+
+
+class _TriggerRequestHandler(BaseHTTPRequestHandler):
+    """Minimal HTTP handler for /trigger endpoint to accept emotion triggers."""
+
+    # Disable default logging to stderr
+    def log_message(self, format: str, *args) -> None:  # type: ignore[override]
+        return
+
+    def do_POST(self) -> None:  # type: ignore[override]
+        if self.path != "/trigger":
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        content_length = self.headers.get("Content-Length")
+        try:
+            length = int(content_length or "0")
+        except ValueError:
+            length = 0
+
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            self.send_response(400)
+            self.end_headers()
+            return
+
+        emotion = data.get("emotion")
+        if not isinstance(emotion, str):
+            self.send_response(400)
+            self.end_headers()
+            return
+
+        # Accept only known emotions; treat neutral as idle for the state machine
+        if emotion not in {"idle", "happy", "sad", "curious", "wave", "neutral"}:
+            self.send_response(400)
+            self.end_headers()
+            return
+
+        normalized = "idle" if emotion == "neutral" else emotion
+
+        try:
+            # Keep only the latest trigger
+            while True:
+                try:
+                    _emotion_trigger_queue.get_nowait()
+                except queue.Empty:
+                    break
+            _emotion_trigger_queue.put_nowait(normalized)
+        except queue.Full:
+            # Should not happen due to clearing above, but ignore if it does
+            pass
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"ok": true}')
+
+
+def start_trigger_server(port: int) -> None:
+    """Start background HTTP server for external emotion triggers."""
+
+    server = HTTPServer(("127.0.0.1", port), _TriggerRequestHandler)
+
+    def _serve() -> None:
+        try:
+            server.serve_forever()
+        except Exception:
+            # Best-effort server; shutdown on any unexpected error
+            logging.exception("Trigger HTTP server stopped unexpectedly")
+
+    thread = threading.Thread(target=_serve, name="emotion-trigger-server", daemon=True)
+    thread.start()
+    logging.info("Emotion trigger HTTP server listening on http://127.0.0.1:%d/trigger", port)
 
 
 def run_living(
@@ -82,6 +165,14 @@ def run_living(
         while True:
             start_t = time.perf_counter()
             t = start_t - t0
+
+            # Apply any pending external emotion triggers
+            try:
+                while True:
+                    trigger = _emotion_trigger_queue.get_nowait()
+                    state_machine.trigger_emotion(trigger)
+            except queue.Empty:
+                pass
 
             state, state_local_t = state_machine.step(t)
             if state != last_state:
@@ -148,7 +239,17 @@ def main() -> None:
         type=float,
         default=2.0,
     )
+    parser.add_argument(
+        "--trigger.port",
+        dest="trigger_port",
+        type=int,
+        default=9998,
+        help="Local HTTP port for external emotion triggers",
+    )
     args = parser.parse_args()
+
+    # Start background HTTP trigger server
+    start_trigger_server(args.trigger_port)
 
     config = SO101FollowerConfig(
         port=args.robot_port,

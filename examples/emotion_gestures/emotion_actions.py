@@ -44,18 +44,30 @@ EmotionActionKeyframes = list[tuple[float, dict[str, float]]]
 EMOTION_ACTIONS: dict[str, dict[str, EmotionActionKeyframes]] = {
     "neutral": {
         "idle": [
-            (0, {"elbow_flex": 24.20746684427722, "gripper": 3.8999999999999995, "shoulder_lift": -51.00002185735966, "shoulder_pan": 0, "wrist_flex": 25.649956848454543, "wrist_roll": 0.22915561607816304}),
-            (1.5, {"elbow_flex": 35.05241199051345, "gripper": 12.7, "shoulder_lift": -62.000026571692146, "shoulder_pan": 5.059994261775338, "wrist_flex": 23.369960684147475, "wrist_roll": 0.22915561607816304}),
-            (3, {"elbow_flex": 24.20746684427722, "gripper": 3.8999999999999995, "shoulder_lift": -51.00002185735966, "shoulder_pan": 0, "wrist_flex": 25.649956848454543, "wrist_roll": 0.22915561607816304}),
+            (0, {"elbow_flex": 24.2, "gripper": 3.9, "shoulder_lift": -51.0, "shoulder_pan": 0, "wrist_flex": 25.6, "wrist_roll": 0.2}),
+            (1.5, {"elbow_flex": 35.0, "gripper": 12.7, "shoulder_lift": -62.0, "shoulder_pan": 5.0, "wrist_flex": 23.3, "wrist_roll": 0.2}),
+            (3, {"elbow_flex": 24.2, "gripper": 3.9, "shoulder_lift": -51.0, "shoulder_pan": 0, "wrist_flex": 25.6, "wrist_roll": 0.2}),
         ],
     },
     "happy": {
         "bounce": [
-            (0, {"elbow_flex": -30, "gripper": 60, "shoulder_lift": 15, "shoulder_pan": 0, "wrist_flex": 10, "wrist_roll": 0}),
-            (0.25, {"elbow_flex": -35, "gripper": 70, "shoulder_lift": 22, "shoulder_pan": 5, "wrist_flex": 12, "wrist_roll": 2}),
-            (0.5, {"elbow_flex": -32, "gripper": 65, "shoulder_lift": 18, "shoulder_pan": -5, "wrist_flex": 8, "wrist_roll": -2}),
-            (0.75, {"elbow_flex": -35, "gripper": 70, "shoulder_lift": 22, "shoulder_pan": 5, "wrist_flex": 12, "wrist_roll": 2}),
-            (1, {"elbow_flex": -30, "gripper": 60, "shoulder_lift": 15, "shoulder_pan": 0, "wrist_flex": 10, "wrist_roll": 0}),
+            # t=0: 从默认的 idle 状态无缝开始
+            (0, {"elbow_flex": 24.2, "gripper": 3.9, "shoulder_lift": -51.0, "shoulder_pan": 0, "wrist_flex": 25.6, "wrist_roll": 0.2}),
+            
+            # t=0.2: 快速下蹲蓄力 (大臂下沉，肘部回弯)
+            (0.2, {"elbow_flex": 15.0, "gripper": 5.0, "shoulder_lift": -40.0, "shoulder_pan": -5.0, "wrist_flex": 35.0, "wrist_roll": -5.0}),
+            
+            # t=0.4: 向上弹起爆发 (大臂抬起，肘部伸展，嘴巴张开)
+            (0.4, {"elbow_flex": 50.0, "gripper": 80.0, "shoulder_lift": -75.0, "shoulder_pan": 5.0, "wrist_flex": 5.0, "wrist_roll": 10.0}),
+            
+            # t=0.6: 在高点快速歪头抖动
+            (0.6, {"elbow_flex": 45.0, "gripper": 40.0, "shoulder_lift": -70.0, "shoulder_pan": -5.0, "wrist_flex": 10.0, "wrist_roll": -10.0}),
+            
+            # t=0.8: 第二次弹起 (欢呼)
+            (0.8, {"elbow_flex": 50.0, "gripper": 80.0, "shoulder_lift": -75.0, "shoulder_pan": 5.0, "wrist_flex": 5.0, "wrist_roll": 10.0}),
+            
+            # t=1.2: 平稳回落到默认状态
+            (1.2, {"elbow_flex": 24.2, "gripper": 3.9, "shoulder_lift": -51.0, "shoulder_pan": 0, "wrist_flex": 25.6, "wrist_roll": 0.2}),
         ],
     },
     "sad": {
