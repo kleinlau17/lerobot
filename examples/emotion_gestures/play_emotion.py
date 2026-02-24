@@ -31,6 +31,12 @@ Usage:
       --robot.port=/dev/ttyACM0 \\
       --dataset.repo_id=user/emotion_gestures \\
       --dataset.emotion_id=happy
+
+  # Use same robot.id as when recording (to reuse calibration file):
+  python play_emotion.py --robot.id=black --robot.no_calibrate ...
+
+  # Skip calibration (robot already calibrated, e.g. just used in another script):
+  python play_emotion.py --robot.no_calibrate ...
 """
 
 import argparse
@@ -48,13 +54,13 @@ from lerobot.utils.robot_utils import precise_sleep
 
 def find_episode_by_emotion(dataset: LeRobotDataset, emotion_id: str) -> int | None:
     """Find first episode index whose task matches emotion_id."""
-    for ep_idx in range(dataset.total_episodes):
+    for ep_idx in range(dataset.num_episodes):
         ep_frames = dataset.hf_dataset.filter(lambda x: x["episode_index"] == ep_idx)
         if len(ep_frames) == 0:
             continue
-        task_val = ep_frames[0]["task"]
-        if isinstance(task_val, bytes):
-            task_val = task_val.decode("utf-8")
+        task_idx = ep_frames[0]["task_index"]
+        task_idx_val = task_idx.item() if hasattr(task_idx, "item") else int(task_idx)
+        task_val = dataset.meta.tasks.iloc[task_idx_val].name
         if task_val == emotion_id:
             return ep_idx
     return None
@@ -67,13 +73,14 @@ def replay_episode(
     num_repeats: int = 1,
     post_replay_delay: float = 2.0,
     play_sounds: bool = False,
+    calibrate: bool = True,
 ) -> None:
     """Replay a single episode on the robot (same logic as lerobot-replay)."""
     episode_frames = dataset.hf_dataset.filter(lambda x: x["episode_index"] == episode)
     actions = episode_frames.select_columns(ACTION)
 
     robot_action_processor = make_default_robot_action_processor()
-    robot.connect()
+    robot.connect(calibrate=calibrate)
 
     try:
         last_processed_action = None
@@ -110,7 +117,10 @@ def main():
 
     parser = argparse.ArgumentParser(description="Play emotion gestures on SO101")
     parser.add_argument("--robot.port", dest="robot_port", default="/dev/ttyACM0")
-    parser.add_argument("--robot.id", dest="robot_id", default="emotion_follower")
+    parser.add_argument("--robot.id", dest="robot_id", default="emotion_follower",
+                        help="Must match the robot id used when recording to reuse calibration file")
+    parser.add_argument("--robot.no_calibrate", dest="no_calibrate", action="store_true",
+                        help="Skip calibration on connect (use when robot is already calibrated)")
     parser.add_argument("--dataset.repo_id", dest="repo_id", default="user/emotion_gestures")
     parser.add_argument("--dataset.root", dest="root", type=str, default=None)
     parser.add_argument("--dataset.episode", dest="episode", type=int, default=None)
@@ -147,6 +157,7 @@ def main():
         episode=episode,
         num_repeats=args.num_repeats,
         post_replay_delay=args.post_replay_delay,
+        calibrate=not args.no_calibrate,
     )
 
 

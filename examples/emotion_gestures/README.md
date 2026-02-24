@@ -45,6 +45,24 @@ python examples/emotion_gestures/play_emotion.py \
     --dataset.emotion_id=happy
 ```
 
+## Living Behavior (Pixar-style Idle)
+
+Run continuous living behavior with a state machine that switches between idle (breathing + micro-motion) and emotions. Does not depend on record_emotion or play_emotion.
+
+```bash
+cd lerobot
+python examples/emotion_gestures/run_living.py --robot.port=/dev/ttyACM0
+```
+
+Options:
+
+- `--breathing.amplitude`, `--breathing.freq_hz` – idle breathing
+- `--expression.interval_min_s`, `--expression.interval_max_s` – idle duration before next emotion (default 30–90 s)
+- `--emotion.duration_s` – duration of each emotion animation (default 3 s)
+- `--micro_fidget.amplitude` – micro-motion amplitude
+
+State machine: `idle` (breathing + micro-fidget) ↔ `happy` / `curious` / `wave` / `sad`. Transitions to an emotion after the idle interval; returns to idle when the emotion animation ends. Supports `trigger_emotion(emotion)` for external triggers (e.g. vision, voice).
+
 ## Using lerobot-replay
 
 The dataset is compatible with `lerobot-replay`:
